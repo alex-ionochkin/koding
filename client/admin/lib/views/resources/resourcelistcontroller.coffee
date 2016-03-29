@@ -1,6 +1,7 @@
 kd        = require 'kd'
 remote    = require('app/remote').getInstance()
 showError = require 'app/util/showError'
+getGroup  = require 'app/util/getGroup'
 
 KodingListController = require 'app/kodinglist/kodinglistcontroller'
 { yamlToJson }       = require 'stacks/views/stacks/yamlutils'
@@ -19,7 +20,7 @@ module.exports = class ResourceListController extends KodingListController
         query  = inJson.contentObject  unless inJson.err
 
       query = { searchFor: query }  if typeof query is 'string'
-      group = kd.singletons.groupsController.getCurrentGroup()
+      group = getGroup()
       group.fetchResources query ? {}, fetchOptions, callback
 
     super options, data
