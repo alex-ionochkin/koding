@@ -269,7 +269,7 @@ module.exports = class DefineStackView extends KDView
       title          : 'Cancel'
       cssClass       : 'solid compact light-gray nav cancel'
       callback       : =>
-        appManager.tell 'Stacks', 'exitFullscreen'
+        appManager.tell 'Stacks', 'exitFullscreen'  unless @getOption 'skipFullscreen'
         Tracker.track Tracker.STACKS_CANCEL_SETUP if @cancelButton.buttonTitle is 'Cancel'
         Tracker.track Tracker.STACKS_FINISHED_EDIT if @cancelButton.buttonTitle is 'Ok'
         @emit 'Cancel'
@@ -281,7 +281,7 @@ module.exports = class DefineStackView extends KDView
       cssClass       : 'solid compact green nav next hidden set-default'
       loader         : yes
       callback       : =>
-        appManager.tell 'Stacks', 'exitFullscreen'
+        appManager.tell 'Stacks', 'exitFullscreen'  unless @getOption 'skipFullscreen'
         @handleSetDefaultTemplate()
 
     @buttons.addSubView @generateStackButton = new kd.ButtonView
@@ -289,7 +289,7 @@ module.exports = class DefineStackView extends KDView
       cssClass       : 'solid compact green nav next hidden provision'
       loader         : yes
       callback       : =>
-        appManager.tell 'Stacks', 'exitFullscreen'
+        appManager.tell 'Stacks', 'exitFullscreen'  unless @getOption 'skipFullscreen'
         @handleGenerateStack()
 
     @buttons.addSubView @saveButton = new kd.ButtonView
@@ -297,7 +297,7 @@ module.exports = class DefineStackView extends KDView
       cssClass       : 'solid compact green nav next save-test'
       loader         : yes
       callback       : =>
-        appManager.tell 'Stacks', 'exitFullscreen'
+        appManager.tell 'Stacks', 'exitFullscreen'  unless @getOption 'skipFullscreen'
         @handleSave()
 
 
