@@ -16,12 +16,16 @@ module.exports = class Payment extends Base
       static          :
         subscribe         :
           (signature Object, Function)
+        subscribeGroup    :
+          (signature Object, Function)
         subscriptions     :
           (signature Object, Function)
         invoices          :
           (signature Object, Function)
         creditCard        :
           (signature Object, Function)
+        fetchGroupCreditCard:
+          (signature Function)
         updateCreditCard  :
           (signature Object, Function)
         canChangePlan     :
@@ -69,9 +73,45 @@ module.exports = class Payment extends Base
               console.warn 'logging to SiftScience failed', err  if err
 
 
+  @subscribeGroup = (group, data, callback) ->
+
+    return callback new KodingError 'No such group'  unless group
+
+    if group.slug is 'koding' or KONFIG.environment is 'default'
+      return callback null, {}
+
+    requiredParams = ['token', 'email']
+
+    validateParams requiredParams, data, (err) ->
+      return callback err  if err
+
+      data = extend data,
+        groupId: group._id
+        provider: 'stripe'
+        planTitle: 'team_base'
+        planInterval: 'month'
+
+      data.groupId = group._id
+      url = "#{socialProxyUrl}/payments/group/subscribe"
+
+      post url, data, callback
+
+
+  @subscribeGroup$ = secure (client, data, callback) ->
+
+    slug = client?.context?.group
+
+    return callback new KodingError 'No such group'  unless slug
+
+    JGroup = require './group'
+    JGroup.one { slug }, (err, group) ->
+      return callback err  if err
+      Payment.subscribeGroup group, data, callback
+
+
   @fetchGroupPlan = (group, callback) ->
 
-    return callback new KodingError 'No such group'   unless group
+    return callback new KodingError 'No such group'  unless group
 
     if group.slug is 'koding' or KONFIG.environment is 'default'
       return callback null, { planTitle: 'unlimited' }
@@ -118,6 +158,29 @@ module.exports = class Payment extends Base
     url = "#{socialProxyUrl}/payments/creditcard/#{data.accountId}"
 
     get url, data, callback
+
+
+  @fetchGroupCreditCard = (group, callback) ->
+
+    return callback new KodingError 'No such group'  unless group
+
+    data = { groupId: group._id }
+
+    url = "#{socialProxyUrl}/payments/group/creditcard/#{data.groupId}"
+    get url, data, callback
+
+
+  @fetchGroupCreditCard$ = secure (client, callback) ->
+
+    slug = client?.context?.group
+
+    return callback new KodingError 'No such group'  unless slug
+
+    JGroup = require './group'
+    JGroup.one { slug }, (err, group) ->
+      return callback err  if err
+      Payment.fetchGroupCreditCard group, callback
+
 
   @updateCreditCard = secure (client, data, callback) ->
     requiredParams = [ 'token' , 'provider']
