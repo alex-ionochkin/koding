@@ -1,3 +1,4 @@
+_ = require 'lodash'
 kd                      = require 'kd'
 async                   = require 'async'
 actions                 = require './actiontypes'
@@ -11,6 +12,12 @@ toImmutable             = require 'app/util/toImmutable'
 getGroup                = require 'app/util/getGroup'
 whoami                  = require 'app/util/whoami'
 environmentDataProvider = require 'app/userenvironmentdataprovider'
+
+stackDefaults = require 'stacks/defaults'
+providersParser = require 'stacks/views/stacks/providersparser'
+requirementsParser = require 'stacks/views/stacks/requirementsparser'
+{ jsonToYaml } = require 'stacks/views/stacks/yamlutils'
+
 
 
 _eventsCache =
@@ -496,6 +503,86 @@ setMachinePowerStatus = (machineId, shouldStart) ->
   kd.singletons.computeController[method] machine
 
 
+createStackTemplate = (options) ->
+
+  { reactor } = kd.singletons
+
+  { title, template, credentials, rawContent
+    templateDetails, config, description } = options
+
+  return new Promise (resolve, reject) ->
+
+    reactor.dispatch actions.CREATE_STACK_TEMPLATE_BEGIN
+
+    remote.api.JStackTemplate.create {
+      title, template, credentials, rawContent
+      templateDetails, config, description
+    }, (err, stackTemplate) ->
+      if err
+        reactor.dispatch actions.CREATE_STACK_TEMPLATE_FAIL, { err }
+        reject err
+        return
+
+      reactor.dispatch actions.CREATE_STACK_TEMPLATE_SUCCESS, { stackTemplate }
+      resolve { stackTemplate }
+
+
+createStackTemplateWithDefaults = (overrides = {}) ->
+
+  if overrides.template
+    template = overrides.template
+    rawContent = jsonToYaml(template).content
+  else
+    { template, rawContent } = stackDefaults
+
+  requiredProviders = providersParser template
+
+  if overrides.selectedProvider is 'vagrant'
+    requiredProviders.push 'vagrant'
+
+  requiredData = requirementsParser template
+
+  options = _.assign {}, stackDefaults,
+    template: template
+    rawContent: rawContent
+    config: { requiredData, requiredProviders }
+
+  return createStackTemplate(options)
+
+
+updateStackTemplate = (stackTemplate, options) ->
+
+  { reactor } = kd.singletons
+
+  { inuse, _updated } = stackTemplate
+
+  { machines, config, title, template, credentials
+    rawContent, templateDetails, description } = options
+
+  updateOptions = if machines
+  then { machines, config }
+  else { title, template, credentials, rawContent, templateDetails, config, description }
+
+  return new Promise (resolve, reject) ->
+
+    reactor.dispatch actions.UPDATE_STACK_TEMPLATE_BEGIN
+
+    stackTemplate.update updateOptions, (err, updatedTemplate) ->
+      if err
+        reactor.dispatch actions.UPDATE_STACK_TEMPLATE_FAIL, { err }
+        reject err
+        return
+
+      stackTemplate = _.assign stackTemplate, { inuse, _updated }
+
+      updateStackTemplate.inuse = inuse
+
+      successPayload = { stackTemplate: updatedTemplate }
+
+      reactor.dispatch actions.UPDATE_STACK_TEMPLATE_SUCCESS, successPayload
+      resolve successPayload
+
+
 generateStack = (stackTemplateId) ->
 
   { computeController } = kd.singletons
@@ -523,6 +610,15 @@ deleteStack = (stackTemplateId) ->
       return  if showError err
 
       computeController.reset yes
+
+
+changeTemplateTitle = (id, value) ->
+
+  return  unless id
+
+  { reactor } = kd.singletons
+
+  reactor.dispatch actions.CHANGE_TEMPLATE_TITLE, { id, value }
 
 
 module.exports = {
@@ -555,6 +651,10 @@ module.exports = {
   loadPrivateStackTemplates
   setMachineAlwaysOn
   setMachinePowerStatus
+  createStackTemplate
+  createStackTemplateWithDefaults
+  updateStackTemplate
   generateStack
   deleteStack
+  changeTemplateTitle
 }

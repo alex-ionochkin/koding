@@ -13,6 +13,8 @@ module.exports = class PrivateStackTemplatesStore extends KodingFluxStore
   initialize: ->
 
     @on actions.LOAD_PRIVATE_STACK_TEMPLATES_SUCCESS, @load
+    @on actions.CHANGE_TEMPLATE_TITLE, @changeTitle
+    @on actions.CREATE_STACK_TEMPLATE_SUCCESS, @loadSingle
 
 
   load: (stackTemplates, { templates }) ->
@@ -23,5 +25,21 @@ module.exports = class PrivateStackTemplatesStore extends KodingFluxStore
 
     return stackTemplates
 
+
+  loadSingle: (templates, { stackTemplate }) ->
+
+    templates.set stackTemplate._id, toImmutable stackTemplate
+
+
+  changeTitle: (stackTemplates, { id, value }) ->
+
+    template = stackTemplates.get id
+
+    return stackTemplates  unless template
+
+    stackTemplates.withMutations (templates) ->
+      templates
+        .setIn [id, 'title'], value
+        .setIn [id, 'isDirty'], yes
 
 
